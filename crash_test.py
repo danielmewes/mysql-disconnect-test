@@ -27,31 +27,35 @@ class DBCheck:
             if cnx.is_connected():
                 db_Info = cnx.get_server_info()
                 print("Connected to MySQL Server version ", db_Info)
+                print(f"Is autocommit {cnx.autocommit}")
             else:
                 print('Failed to connect the DB')
                 return
 
             cursor = cnx.cursor()
-            print("Before updating a record ")
+            print("Before updating a record, select first")
+            # autocommit is disabled by default and the first SQL statement will implicitly begin a transaction.
             sql_select_query = """select * from users where id = 1 for update"""
             cursor.execute(sql_select_query)
             record = cursor.fetchone()
-            print(record)
+            print(f"select result: {record}")
 
             # Update single record now
             sql_update_query = """Update users set username = 'qiulang' where id = 1"""
             cursor.execute(sql_update_query)
-            print('I am about to sleep in 30 seconds')
+            print('I am about to sleep for 30 seconds')
             time.sleep(30)
+            # 1205 (HY000): Lock wait timeout exceeded; try restarting transaction
+            # If sleep 90 second, it will definitely trigger innodb_lock_wait_timeout
             if self.crash == 1:
-                print('OK let us return')
+                print('OK let us return without calling cnx.close()')
                 return
             else:
                 print('OK let us continue to run instead of crashing')
             cnx.commit()
             print("Record Updated successfully ")
 
-            print("After updating record ")
+            print("After updating record, select again")
             cursor.execute(sql_select_query)
             record = cursor.fetchone()
             print(record)
