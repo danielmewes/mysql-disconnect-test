@@ -16,27 +16,31 @@ class DBCheck:
         self.host = os.getenv('DB_HOST')
         self.dbname = os.getenv('DB_NAME')
         self.crash = 0
+        self.cnx = None
 
     def select_update(self):
-        cnx = None
         try:
-            cnx = mysql.connector.connect(user=self.user,
-                                          password=self.password,
-                                          host=self.host,
-                                          database=self.dbname)
-            if cnx.is_connected():
-                db_Info = cnx.get_server_info()
+            self.cnx = mysql.connector.connect(user=self.user,
+                                               password=self.password,
+                                               host=self.host,
+                                               database=self.dbname)
+            if self.cnx.is_connected():
+                db_Info = self.cnx.get_server_info()
                 print("Connected to MySQL Server version ", db_Info)
-                print(f"Is autocommit {cnx.autocommit}")
+                print(f"Is autocommit {self.cnx.autocommit}")
             else:
                 print('Failed to connect the DB')
                 return
 
-            cursor = cnx.cursor()
+            cursor = self.cnx.cursor()
             print("Before updating a record, select first")
+            print(
+                f"Are we in_transaction before select?: {self.cnx.in_transaction}")
             # autocommit is disabled by default and the first SQL statement will implicitly begin a transaction.
             sql_select_query = """select * from users where id = 1 for update"""
             cursor.execute(sql_select_query)
+            print(
+                f"Are we in_transaction after select?: {self.cnx.in_transaction}")
             record = cursor.fetchone()
             print(f"select result: {record}")
 
@@ -48,11 +52,13 @@ class DBCheck:
             # 1205 (HY000): Lock wait timeout exceeded; try restarting transaction
             # If sleep 90 second, it will definitely trigger innodb_lock_wait_timeout
             if self.crash == 1:
-                print('OK let us return without calling cnx.close()')
+                print('OK let us return without calling self.cnx.close()')
                 return
             else:
                 print('OK let us continue to run instead of crashing')
-            cnx.commit()
+            self.cnx.commit()
+            print(
+                f"Are we in_transaction after commit?: {self.cnx.in_transaction}")
             print("Record Updated successfully ")
 
             print("After updating record, select again")
@@ -70,10 +76,14 @@ class DBCheck:
             exit(1)
         finally:
             if self.crash == 1:
+                print(
+                    f"Are we in_transaction without commit and close?: {self.cnx.in_transaction}")
                 return
-            if cnx != None and cnx.is_connected():
+            if self.cnx != None and self.cnx.is_connected():
+                print(
+                    f"Are we in_transaction before close?: {self.cnx.in_transaction}")
                 cursor.close()
-                cnx.close()
+                self.cnx.close()
 
 
 if __name__ == '__main__':
@@ -83,3 +93,4 @@ if __name__ == '__main__':
                         help="Whether to exit before commit")
     test.crash = parser.parse_args().crash
     test.select_update()
+    print(f"Are we in_transaction before return?: {test.cnx.in_transaction}")
