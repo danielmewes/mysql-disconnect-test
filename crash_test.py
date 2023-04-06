@@ -52,8 +52,8 @@ class DBCheck:
             # 1205 (HY000): Lock wait timeout exceeded; try restarting transaction
             # If sleep 90 second, it will definitely trigger innodb_lock_wait_timeout
             if self.crash == 1:
-                print('OK let us return without calling self.cnx.close()')
-                return
+                print('Kill own process without calling self.cnx.close()')
+                os.kill(os.getpid(), 9)
             else:
                 print('OK let us continue to run instead of crashing')
             self.cnx.commit()
